@@ -1,0 +1,96 @@
+import robocode.*;
+import java.awt.Color;
+import java.util.Random;
+import robocode.util.Utils;
+
+public class AdvancedBot extends AdvancedRobot {
+    private Random random = new Random();
+    private double previousEnergy = 100;
+    private int moveDirection = 1;
+    private int radarDirection = 1;
+
+    public void run() {
+        // Set colors for the robot
+        setBodyColor(Color.blue);
+        setGunColor(Color.black);
+        setRadarColor(Color.yellow);
+        setBulletColor(Color.red);
+        setScanColor(Color.green);
+        
+        // Main robot loop
+        setAdjustRadarForGunTurn(true);
+        setAdjustRadarForRobotTurn(true);
+        
+        while (true) {
+            setTurnRadarRight(Double.POSITIVE_INFINITY * radarDirection); // Keep the radar turning
+            execute();
+        }
+    }
+
+    public void onScannedRobot(ScannedRobotEvent event) {
+        double absoluteBearing = getHeading() + event.getBearing();
+        double bearingFromGun = Utils.normalRelativeAngleDegrees(absoluteBearing - getGunHeading());
+        double bearingFromRadar = Utils.normalRelativeAngleDegrees(absoluteBearing - getRadarHeading());
+
+        // Adjust radar to stay locked on target
+        setTurnRadarRight(bearingFromRadar);
+
+        // Predictive targeting
+        double bulletPower = Math.min(3.0, Math.max(0.1, 400 / event.getDistance()));
+        double bulletSpeed = 20 - 3 * bulletPower;
+        double enemyHeading = event.getHeading();
+        double enemyVelocity = event.getVelocity();
+
+        double deltaTime = 0;
+        double predictedX = event.getX();
+        double predictedY = event.getY();
+        while ((++deltaTime) * bulletSpeed < Point2D.Double.distance(getX(), getY(), predictedX, predictedY)) {
+            predictedX += Math.sin(Math.toRadians(enemyHeading)) * enemyVelocity;
+            predictedY += Math.cos(Math.toRadians(enemyHeading)) * enemyVelocity;
+            if (predictedX < 18 || predictedY < 18 || predictedX > getBattleFieldWidth() - 18 || predictedY > getBattleFieldHeight() - 18) {
+                predictedX = Math.min(Math.max(18, predictedX), getBattleFieldWidth() - 18);
+                predictedY = Math.min(Math.max(18, predictedY), getBattleFieldHeight() - 18);
+                break;
+            }
+        }
+        
+        double theta = Utils.normalAbsoluteAngleDegrees(Math.toDegrees(Math.atan2(predictedX - getX(), predictedY - getY())));
+
+        // Turn gun to predicted position and fire
+        setTurnGunRight(Utils.normalRelativeAngleDegrees(theta - getGunHeading()));
+        if (getGunHeat() == 0) {
+            setFire(bulletPower);
+        }
+
+        // Unpredictable movement
+        if (event.getEnergy() < previousEnergy) {
+            setAhead((random.nextDouble() * 200 + 100) * moveDirection);
+            setTurnRight(random.nextDouble() * 90 - 45);
+            moveDirection *= -1;
+        }
+        previousEnergy = event.getEnergy();
+        execute();
+    }
+
+    public void onHitByBullet(HitByBulletEvent event) {
+        // Move in a random direction to dodge bullets
+        setAhead((random.nextDouble() * 200 + 100) * moveDirection);
+        setTurnRight(random.nextDouble() * 90 - 45);
+        moveDirection *= -1;
+        execute();
+    }
+
+    public void onHitWall(HitWallEvent event) {
+        // Reverse direction and move away from the wall
+        moveDirection *= -1;
+        setAhead(100 * moveDirection);
+        setTurnRight(90);
+        execute();
+    }
+
+    public void onHitRobot(HitRobotEvent event) {
+        // Move away from the robot
+        setBack(50);
+        execute();
+    }
+}
