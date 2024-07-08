@@ -1,0 +1,76 @@
+import robocode.*;
+import java.awt.Color;
+import java.util.Random;
+
+public class AdvancedBot extends AdvancedRobot {
+    private Random random = new Random();
+    private double previousEnergy = 100;
+    private int moveDirection = 1;
+
+    public void run() {
+        // Set colors for the robot
+        setBodyColor(Color.blue);
+        setGunColor(Color.black);
+        setRadarColor(Color.yellow);
+        setBulletColor(Color.red);
+        setScanColor(Color.green);
+        
+        // Main robot loop
+        while (true) {
+            setTurnRadarRight(Double.POSITIVE_INFINITY); // Keep the radar turning
+            execute();
+        }
+    }
+
+    public void onScannedRobot(ScannedRobotEvent event) {
+        // Lock the radar on the scanned robot
+        double absoluteBearing = getHeading() + event.getBearing();
+        double bearingFromGun = Utils.normalRelativeAngleDegrees(absoluteBearing - getGunHeading());
+        double bearingFromRadar = Utils.normalRelativeAngleDegrees(absoluteBearing - getRadarHeading());
+        
+        setTurnRadarRight(bearingFromRadar);
+
+        // Unpredictable movement
+        if (event.getEnergy() < previousEnergy) {
+            setAhead((random.nextDouble() * 200 + 100) * moveDirection);
+            setTurnRight(random.nextDouble() * 90 - 45);
+            moveDirection *= -1;
+        }
+        previousEnergy = event.getEnergy();
+
+        // Better shooting
+        if (Math.abs(bearingFromGun) <= 2) {
+            setTurnGunRight(bearingFromGun);
+            if (getGunHeat() == 0) {
+                double distance = event.getDistance();
+                double firePower = Math.min(500 / distance, 3);
+                setFire(firePower);
+            }
+        } else {
+            setTurnGunRight(bearingFromGun);
+        }
+        execute();
+    }
+
+    public void onHitByBullet(HitByBulletEvent event) {
+        // Move in a random direction to dodge bullets
+        setAhead((random.nextDouble() * 200 + 100) * moveDirection);
+        setTurnRight(random.nextDouble() * 90 - 45);
+        moveDirection *= -1;
+        execute();
+    }
+
+    public void onHitWall(HitWallEvent event) {
+        // Reverse direction and move away from the wall
+        moveDirection *= -1;
+        setAhead(100 * moveDirection);
+        setTurnRight(90);
+        execute();
+    }
+
+    public void onHitRobot(HitRobotEvent event) {
+        // Move away from the robot
+        setBack(50);
+        execute();
+    }
+}
