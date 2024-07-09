@@ -1,76 +1,87 @@
-import robocode.*;
-import java.awt.Color;
-import java.util.Random;
+package advancedrobot;
 
-public class AdvancedBot extends AdvancedRobot {
-    private Random random = new Random();
-    private double previousEnergy = 100;
-    private int moveDirection = 1;
+import robocode.AdvancedRobot;
+import robocode.ScannedRobotEvent;
+import robocode.HitByBulletEvent;
+import robocode.HitWallEvent;
 
+public class AdvancedRobotExample extends AdvancedRobot {
+
+    private boolean movingForward;
+
+    @Override
     public void run() {
-        // Set colors for the robot
-        setBodyColor(Color.blue);
-        setGunColor(Color.black);
-        setRadarColor(Color.yellow);
-        setBulletColor(Color.red);
-        setScanColor(Color.green);
-        
-        // Main robot loop
+        // Initialize robot settings
+        setAdjustRadarForRobotTurn(true);
+        setAdjustGunForRobotTurn(true);
+
+        // Robot main loop
         while (true) {
-            setTurnRadarRight(Double.POSITIVE_INFINITY); // Keep the radar turning
+            // Oscillate the radar
+            setTurnRadarRight(360);
             execute();
         }
     }
 
+    @Override
     public void onScannedRobot(ScannedRobotEvent event) {
-        // Lock the radar on the scanned robot
+        // Lock radar on target
         double absoluteBearing = getHeading() + event.getBearing();
-        double bearingFromGun = Utils.normalRelativeAngleDegrees(absoluteBearing - getGunHeading());
-        double bearingFromRadar = Utils.normalRelativeAngleDegrees(absoluteBearing - getRadarHeading());
-        
-        setTurnRadarRight(bearingFromRadar);
+        double bearingFromGun = normalRelativeAngleDegrees(absoluteBearing - getGunHeading());
 
-        // Unpredictable movement
-        if (event.getEnergy() < previousEnergy) {
-            setAhead((random.nextDouble() * 200 + 100) * moveDirection);
-            setTurnRight(random.nextDouble() * 90 - 45);
-            moveDirection *= -1;
-        }
-        previousEnergy = event.getEnergy();
-
-        // Better shooting
-        if (Math.abs(bearingFromGun) <= 2) {
+        // Turn gun towards target
+        if (Math.abs(bearingFromGun) <= 3) {
             setTurnGunRight(bearingFromGun);
-            if (getGunHeat() == 0) {
-                double distance = event.getDistance();
-                double firePower = Math.min(500 / distance, 3);
-                setFire(firePower);
-            }
+            setFire(3);  // Fire with power 3
         } else {
             setTurnGunRight(bearingFromGun);
         }
-        execute();
+
+        // Move towards or away from the target
+        if (event.getDistance() > 150) {
+            setAhead(event.getDistance() - 140);
+            movingForward = true;
+        } else {
+            setBack(140 - event.getDistance());
+            movingForward = false;
+        }
+
+        // Adjust radar
+        setTurnRadarRight(normalRelativeAngleDegrees(absoluteBearing - getRadarHeading()));
     }
 
+    @Override
     public void onHitByBullet(HitByBulletEvent event) {
-        // Move in a random direction to dodge bullets
-        setAhead((random.nextDouble() * 200 + 100) * moveDirection);
-        setTurnRight(random.nextDouble() * 90 - 45);
-        moveDirection *= -1;
+        // Turn perpendicular to the bullet direction to evade
+        if (movingForward) {
+            setTurnRight(90 - event.getBearing());
+        } else {
+            setTurnLeft(90 - event.getBearing());
+        }
         execute();
     }
 
+    @Override
     public void onHitWall(HitWallEvent event) {
-        // Reverse direction and move away from the wall
-        moveDirection *= -1;
-        setAhead(100 * moveDirection);
-        setTurnRight(90);
+        // Reverse direction upon hitting a wall
+        if (movingForward) {
+            setBack(100);
+            movingForward = false;
+        } else {
+            setAhead(100);
+            movingForward = true;
+        }
         execute();
     }
 
-    public void onHitRobot(HitRobotEvent event) {
-        // Move away from the robot
-        setBack(50);
-        execute();
+    // Utility method to normalize an angle to the range -180 to 180 degrees
+    private double normalRelativeAngleDegrees(double angle) {
+        double normalizedAngle = angle % 360;
+        if (normalizedAngle > 180) {
+            normalizedAngle -= 360;
+        } else if (normalizedAngle < -180) {
+            normalizedAngle += 360;
+        }
+        return normalizedAngle;
     }
 }
