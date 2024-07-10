@@ -30,13 +30,15 @@ public class jpheads extends AdvancedRobot {
         double bearingFromRadar = Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians());
 
         // Predictive targeting
-        double bulletPower = Math.min(3.0, getEnergy());
+        double bulletPower = Math.min(3.0, getEnergy() / 4);
         double bulletSpeed = 20 - 3 * bulletPower;
         long time = (long)(event.getDistance() / bulletSpeed);
 
-        // Calculate the future position of the enemy
-        double futureX = event.getDistance() * Math.sin(absoluteBearing) + event.getVelocity() * Math.sin(event.getHeadingRadians()) * time;
-        double futureY = event.getDistance() * Math.cos(absoluteBearing) + event.getVelocity() * Math.cos(event.getHeadingRadians()) * time;
+        // Calculate the future bearing
+        double enemyX = event.getDistance() * Math.sin(absoluteBearing);
+        double enemyY = event.getDistance() * Math.cos(absoluteBearing);
+        double futureX = enemyX + event.getVelocity() * Math.sin(event.getHeadingRadians()) * time;
+        double futureY = enemyY + event.getVelocity() * Math.cos(event.getHeadingRadians()) * time;
         double futureAbsoluteBearing = Utils.normalAbsoluteAngle(Math.atan2(futureX, futureY));
 
         setTurnGunRightRadians(Utils.normalRelativeAngle(futureAbsoluteBearing - getGunHeadingRadians()));
@@ -57,7 +59,7 @@ public class jpheads extends AdvancedRobot {
 
     public void onHitByBullet(HitByBulletEvent event) {
         // Move perpendicular to the bullet
-        setTurnRight(Utils.normalRelativeAngleDegrees(90 - (getHeading() - event.getHeading())));
+        setTurnRight(Utils.normalRelativeAngleDegrees(90 - (getHeading() - event.getBearing())));
         setAhead(100);
     }
 
