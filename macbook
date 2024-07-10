@@ -1,0 +1,69 @@
+package jpheads;
+
+import robocode.*;
+import robocode.util.Utils;
+import java.awt.Color;
+import java.awt.geom.Point2D;
+
+public class jpheads extends AdvancedRobot {
+    private double enemyEnergy = 100.0;
+
+    public void run() {
+        // Set the robot's colors
+        setBodyColor(Color.RED);
+        setGunColor(Color.BLACK);
+        setRadarColor(Color.YELLOW);
+
+        // Allow gun and radar to turn independently from the robot's movement
+        setAdjustGunForRobotTurn(true);
+        setAdjustRadarForGunTurn(true);
+
+        // Continuous radar sweep
+        while (true) {
+            setTurnRadarRight(Double.POSITIVE_INFINITY);
+            execute();
+        }
+    }
+
+    public void onScannedRobot(ScannedRobotEvent event) {
+        double absoluteBearing = getHeadingRadians() + event.getBearingRadians();
+        double bearingFromGun = Utils.normalRelativeAngle(absoluteBearing - getGunHeadingRadians());
+        double bearingFromRadar = Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians());
+
+        // Predictive targeting
+        double bulletPower = Math.min(3.0, getEnergy());
+        double bulletSpeed = 20 - 3 * bulletPower;
+        long time = (long)(event.getDistance() / bulletSpeed);
+        double futureX = event.getVelocity() * Math.sin(event.getHeadingRadians()) * time + event.getX();
+        double futureY = event.getVelocity() * Math.cos(event.getHeadingRadians()) * time + event.getY();
+        double futureAbsoluteBearing = Utils.normalAbsoluteAngle(Math.atan2(futureX - getX(), futureY - getY()));
+
+        setTurnGunRightRadians(Utils.normalRelativeAngle(futureAbsoluteBearing - getGunHeadingRadians()));
+        if (getGunHeat() == 0 && Math.abs(bearingFromGun) <= Math.PI / 18) {
+            setFire(bulletPower);
+        }
+
+        // Continuous radar lock
+        setTurnRadarRightRadians(bearingFromRadar * 2);
+
+        // Avoid bullets
+        double changeInEnergy = enemyEnergy - event.getEnergy();
+        if (changeInEnergy > 0 && changeInEnergy <= 3) {
+            setAhead((Math.random() - 0.5) * 150);
+        }
+        enemyEnergy = event.getEnergy();
+    }
+
+    public void onHitByBullet(HitByBulletEvent event) {
+        // Move perpendicular to the bullet
+        setTurnRight(Utils.normalRelativeAngleDegrees(90 - (getHeading() - event.getHeading())));
+        setAhead(100);
+    }
+
+    public void onHitWall(HitWallEvent event) {
+        // Move back when hitting a wall
+        setBack(20);
+        setTurnRight(45);
+        execute();
+    }
+}
