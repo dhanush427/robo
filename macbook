@@ -35,16 +35,14 @@ public class jpheads extends AdvancedRobot {
         double bearingFromRadar = Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians());
 
         // Adaptive targeting
-        double distance = event.getDistance();
-        double bulletPower = Math.min(3.0, Math.max(0.1, 400 / distance));
+        double bulletPower = Math.min(3.0, Math.max(0.1, 400 / event.getDistance()));
         double bulletSpeed = 20 - 3 * bulletPower;
-        long time = (long)(distance / bulletSpeed);
 
         // Calculate the future bearing
-        double enemyX = distance * Math.sin(absoluteBearing);
-        double enemyY = distance * Math.cos(absoluteBearing);
-        double futureX = enemyX + event.getVelocity() * Math.sin(event.getHeadingRadians()) * time;
-        double futureY = enemyY + event.getVelocity() * Math.cos(event.getHeadingRadians()) * time;
+        double enemyX = event.getDistance() * Math.sin(absoluteBearing);
+        double enemyY = event.getDistance() * Math.cos(absoluteBearing);
+        double futureX = enemyX + event.getVelocity() * Math.sin(event.getHeadingRadians());
+        double futureY = enemyY + event.getVelocity() * Math.cos(event.getHeadingRadians());
         double futureAbsoluteBearing = Utils.normalAbsoluteAngle(Math.atan2(futureX, futureY));
 
         setTurnGunRightRadians(Utils.normalRelativeAngle(futureAbsoluteBearing - getGunHeadingRadians()));
