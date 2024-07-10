@@ -3,7 +3,6 @@ package jpheads;
 import robocode.*;
 import robocode.util.Utils;
 import java.awt.Color;
-import java.awt.geom.Point2D;
 
 public class jpheads extends AdvancedRobot {
     private double enemyEnergy = 100.0;
@@ -34,9 +33,11 @@ public class jpheads extends AdvancedRobot {
         double bulletPower = Math.min(3.0, getEnergy());
         double bulletSpeed = 20 - 3 * bulletPower;
         long time = (long)(event.getDistance() / bulletSpeed);
-        double futureX = event.getVelocity() * Math.sin(event.getHeadingRadians()) * time + event.getX();
-        double futureY = event.getVelocity() * Math.cos(event.getHeadingRadians()) * time + event.getY();
-        double futureAbsoluteBearing = Utils.normalAbsoluteAngle(Math.atan2(futureX - getX(), futureY - getY()));
+
+        // Calculate the future position of the enemy
+        double futureX = event.getDistance() * Math.sin(absoluteBearing) + event.getVelocity() * Math.sin(event.getHeadingRadians()) * time;
+        double futureY = event.getDistance() * Math.cos(absoluteBearing) + event.getVelocity() * Math.cos(event.getHeadingRadians()) * time;
+        double futureAbsoluteBearing = Utils.normalAbsoluteAngle(Math.atan2(futureX, futureY));
 
         setTurnGunRightRadians(Utils.normalRelativeAngle(futureAbsoluteBearing - getGunHeadingRadians()));
         if (getGunHeat() == 0 && Math.abs(bearingFromGun) <= Math.PI / 18) {
